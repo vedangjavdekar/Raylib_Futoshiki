@@ -23,7 +23,7 @@ namespace Engine
 		float TriangleWidthPercent = 0.7f;
 		float TriangleHeightPercent = 0.6f;
 
-		int GuessFontSize = 16;
+		int GuessFontSize = 20;
 		int NumberFontSize = 48;
 
 		float CellSize = 108.0f;
