@@ -10,6 +10,11 @@ And all this was build in less than 10 hours.
 
 Also, I will be adding a level editor shortly, so that you guys can share your levels with your friends.
 
+# Screenshots
+
+![Screenshot1](https://github.com/vedangjavdekar/Raylib_Futoshiki/tree/master/github/Screenshot1.png)
+![Screenshot2](https://github.com/vedangjavdekar/Raylib_Futoshiki/tree/master/github/Screenshot2.png)
+
 # Building
 
 - This project uses premake5(included with the project) as its build system.
