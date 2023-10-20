@@ -12,8 +12,8 @@ Also, I will be adding a level editor shortly, so that you guys can share your l
 
 # Screenshots
 
-![Screenshot1](https://github.com/vedangjavdekar/Raylib_Futoshiki/tree/master/github/Screenshot1.png)
-![Screenshot2](https://github.com/vedangjavdekar/Raylib_Futoshiki/tree/master/github/Screenshot2.png)
+![Screenshot1](https://github.com/vedangjavdekar/Raylib_Futoshiki/blob/master/github/Screenshot1.png)
+![Screenshot2](https://github.com/vedangjavdekar/Raylib_Futoshiki/blob/master/github/Screenshot2.png)
 
 # Building
 
