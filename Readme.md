@@ -17,9 +17,9 @@ Also, I will be adding a level editor shortly, so that you guys can share your l
 
 # Building
 
-- This project uses premake5(included with the project) as its build system.
-- Just run the `GenerateProjectFiles.bat` and it will create a visual studio solution.
-- Then the project can be built from within the visual studio.
+* This project uses premake5(included with the project) as its build system.
+* Just run the `GenerateProjectFiles.bat` and it will create a visual studio solution.
+* Then the project can be built from within the visual studio.
 
 # Features
 
@@ -29,19 +29,19 @@ constraints on the cells.
 
 Here are some features:
 
-- Event Handling(very basic message passing system, but works for this purpose).
-- Key bindings through action maps
-- Mapping Contexts (currently in use, but more useful for level editor)
-- Window Resizing support for the game board
-- Hot reloading of the level
-- Currently has only one level
-- A level parser that uses a custom format
+* Event Handling(very basic message passing system, but works for this purpose).
+* Key bindings through action maps
+* Mapping Contexts (currently in use, but more useful for level editor)
+* Window Resizing support for the game board
+* Hot reloading of the level
+* Currently has only one level
+* A level parser that uses a custom format
 
-Game the game is feature complete:
+The game is feature complete:
 
-- User can register the final number in a cell
-- User can register the candidate numbers in a cell
-- Game checks for all constraints and highlights problematic rows/columns
-- User controls are disabled when the user completes the puzzle.
+* User can register the final number in a cell
+* User can register the candidate numbers in a cell
+* Game checks for all constraints and highlights problematic rows/columns
+* User controls are disabled when the user completes the puzzle.
 
 Stay tuned. Have fun :)
