@@ -11,7 +11,7 @@ namespace Engine
 	Application::Application(ApplicationProps props)
 		:m_ApplicationProps(props)
 		, m_IsRunning(false)
-		, m_Grid(6, 6)
+		, m_Grid()
 	{
 		s_Instance = this;
 	}
@@ -54,7 +54,12 @@ namespace Engine
 
 	void Application::AddEvent(const Event& customEvent)
 	{
-		m_EventQueue.push_back(customEvent);
+		m_PropagatedEventQueue.push_back(customEvent);
+	}
+
+	Notifications& Application::GetNotifications()
+	{
+		return m_Notifications;
 	}
 
 	void Application::Init()
@@ -62,14 +67,25 @@ namespace Engine
 		SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
 		InitWindow(m_ApplicationProps.Width, m_ApplicationProps.Height, m_ApplicationProps.Title.c_str());
 		SetTargetFPS(144);
+		SetExitKey(0);
 
 		m_Grid.Center = Vector2{ 0.5f * GetScreenWidth(), 0.5f * GetScreenHeight() };
 
 		SetupKeybindings();
 
-		Serialization::Parser parser;
-		Serialization::LevelData data = parser.Parse("./data/Level.data");
-		m_Grid.LoadFromData(data);
+		m_LevelSelection.LoadLevelNames("./data/");
+		if (m_LevelSelection.HasLevels())
+		{
+			AddEvent(Event{ EventType::TOGGLE_LEVEL_MENU,{0,0} });
+		}
+		else
+		{
+			m_Notifications.AddNotification(LOG_INFO, "No levels were found. Starting Editor!");
+			m_Grid.NewBoard(true, false);
+
+			// Change to Edit mode by default
+			AddEvent(CreateGridStateChangeEvent(ALT_MODE_NC, EDIT_MODE_ON));
+		}
 
 		m_IsRunning = true;
 	}
@@ -81,71 +97,201 @@ namespace Engine
 			m_Grid.Center = Vector2{ 0.5f * GetScreenWidth(), 0.5f * GetScreenHeight() };
 		}
 
-		ProcessEvents();
+
+		if (IsKeyPressed(KEY_B))
+		{
+			m_Notifications.AddNotification(LOG_INFO, "Game Loaded successfully!");
+		}
+
+		if (IsKeyPressed(KEY_N))
+		{
+			m_Notifications.AddNotification(LOG_WARNING, "Game Loaded partially!");
+		}
+
+		if (IsKeyPressed(KEY_M))
+		{
+			m_Notifications.AddNotification(LOG_ERROR, "Game Loaded with Errors!");
+		}
+
+		m_ActionMap.GenerateEvents(m_EventQueue);
+
+		do
+		{
+			ProcessEvents();
+		} while (m_EventQueue.size());
+
+		m_LevelSelection.Update(deltaTime);
 
 		m_Grid.Update();
+
+		m_Notifications.Update(deltaTime);
 	}
 
 	void Application::Draw()
 	{
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
-		DrawText("Futoshiki", 10, 10, 36, DARKGRAY);
-		DrawText("CTRL + Num = Guess", 10, 50, 16, GRAY);
-		DrawText("Num = Number", 10, 75, 16, GRAY);
-		DrawText("WASD/Arrow Keys = Navigation", 10, 100, 16, GRAY);
-		DrawText("R = Reset", 10, 125, 16, RED);
 
-		if (m_Grid.PlayerWon())
+		DrawText("Futoshiki", 10, 10, 36, DARKGRAY);
+		const uint8_t fontSize = 20;
+		if (!m_Grid.GetGridState().EditMode)
 		{
-			const float width = MeasureText("You won!", 64);
-			DrawText("You won!", 0.5f * (GetScreenWidth() - width), 10, 64, GREEN);
+			const char* levelSelectionText = "L = Toggle Level Selection";
+			const int levelSelectionHelpTextWidth = MeasureText(levelSelectionText, fontSize);
+			DrawText(levelSelectionText, (GetScreenWidth() - levelSelectionHelpTextWidth - 10), 10, fontSize, DARKGRAY);
 		}
 
+		const int levelNameWidth = MeasureText(m_LevelSelection.GetLastLoadedLevelName().c_str(), fontSize);
+		DrawText(m_LevelSelection.GetLastLoadedLevelName().c_str(), (GetScreenWidth() - levelNameWidth) / 2, 10, fontSize, DARKGRAY);
+
 		m_Grid.Draw();
+
+		m_LevelSelection.Draw();
+
+		const float offsetPercentX = 0.5f;
+		const float offsetPercentY = 0.99f;
+		m_Notifications.Draw(offsetPercentX, offsetPercentY);
 
 		EndDrawing();
 	}
 
 	void Application::ProcessEvents()
 	{
-		m_ActionMap.GenerateEvents(m_EventQueue);
-
-		for (const auto& event : m_EventQueue)
+		for (auto& event: m_EventQueue)
 		{
+			m_LevelSelection.ProcessEvents(event);
+
+			if (event.handled)
+			{
+				continue;
+			}
+
 			switch (event.type)
 			{
-			case EventType::REPARSE_LEVEL:
+			case EventType::INPUT_LAYER_OPERATION:
 			{
-				Serialization::Parser parser;
-				Serialization::LevelData data = parser.Parse("./data/Level.data");
-				m_Grid.LoadFromData(data);
+				if (event.data[0] == (int)InputLayerOperation::PUSH)
+				{
+					m_ActionMap.PushInputLayer((MappingContext)event.data[1]);
+				}
+				else if (event.data[0] == (int)InputLayerOperation::POP)
+				{
+					m_ActionMap.PopInputLayer();
+				}
+
 				break;
 			}
 			case EventType::BOARD_RESET:
 			{
-				m_Grid.Reset();
-				m_ActionMap.AddMappingContext(MappingContext::GAME);
+				if (m_Grid.GetGridState().EditMode)
+				{
+					if (m_Grid.GetGridState().AltMode)
+					{
+						m_Grid.NewBoard();
+					}
+					else
+					{ 
+						m_Grid.LoadFromData(Serialization::Parse(m_LevelSelection.GetLastLoadedLevelPath()));
+					}
+				}
+				else
+				{
+					m_Grid.Reset();
+					m_ActionMap.RemoveAllMappingContexts();
+					m_ActionMap.AddMappingContext(MappingContext::GAME);
+				}
 				break;
 			}
 			case EventType::PLAYER_WON:
 			{
-				m_ActionMap.RemoveMappingContext(MappingContext::GAME);
+				m_ActionMap.RemoveAllMappingContexts();
+				m_ActionMap.AddMappingContext(MappingContext::POST_GAME);
 				break;
 			}
 			case EventType::CHANGE_SELECTION:
 			{
-				m_Grid.AddSelection(event.data[0], event.data[1]);
+				m_Grid.OnChangeSelection(event.data[0], event.data[1]);
 				break;
 			}
-			case EventType::ENTER_GUESS:
+			case EventType::NUMBER_EVENT:
 			{
-				m_Grid.ToggleGuess(event.data[0]);
+				m_Grid.OnHandleNumber(event.data[0]);
 				break;
 			}
-			case EventType::ENTER_NUMBER:
+			case EventType::CHANGE_GRID_STATE:
 			{
-				m_Grid.ToggleNumber(event.data[0]);
+				if (event.data[0] != ALT_MODE_NC)
+				{
+					m_Grid.SetAltMode(event.data[0]);
+				}
+
+				if (event.data[1] != EDIT_MODE_NC)
+				{
+					m_Grid.SetEditMode(event.data[1]);
+
+					m_ActionMap.RemoveAllMappingContexts();
+
+					if (event.data[1])
+					{
+						m_ActionMap.AddMappingContext(MappingContext::EDITOR);
+					}
+					else
+					{
+						m_ActionMap.AddMappingContext(MappingContext::GAME);
+					}
+				}
+				break;
+			}
+			case EventType::TOGGLE_LEVEL_MENU:
+			{
+				if (m_LevelSelection.IsOpen())
+				{
+					const bool shouldCommit = event.data[0];
+					m_LevelSelection.Close(shouldCommit);
+					if (!shouldCommit && !m_Grid.HasValidData())
+					{
+						AddEvent(CreateGridStateChangeEvent(ALT_MODE_NC, EDIT_MODE_ON));
+						m_Grid.NewBoard();
+					}
+				}
+				else
+				{
+					m_LevelSelection.ShowMenu();
+				}
+				break;
+			}
+			case EventType::SAVE_LEVEL:
+			{
+				m_LevelSelection.SaveLevel(Grid::GetSaveData(m_Grid), m_Grid.GetGridState().AltMode);
+				break;
+			}
+			case EventType::SELECT_LEVEL:
+			{
+				Serialization::LevelData levelData;
+				if (m_LevelSelection.ParseLevel(event.data[0], levelData))
+				{
+					m_Grid.LoadFromData(levelData);
+					m_ActionMap.RemoveAllMappingContexts();
+					m_ActionMap.AddMappingContext(MappingContext::GAME);
+					AddEvent(CreateGridStateChangeEvent(ALT_MODE_NC, EDIT_MODE_OFF));
+				}
+				else
+				{
+					AddEvent(CreateGridStateChangeEvent(ALT_MODE_NC, EDIT_MODE_ON));
+					m_Grid.NewBoard();
+				}
+				break;
+			}
+			case EventType::CANCEL:
+			{
+				if (m_Grid.GetGridState().EditMode)
+				{
+					AddEvent(CreateGridStateChangeEvent(ALT_MODE_NC, EDIT_MODE_OFF));
+				}
+				else
+				{
+					Close();
+				}
 				break;
 			}
 			default:
@@ -156,54 +302,76 @@ namespace Engine
 		}
 
 		m_EventQueue.clear();
+
+		if (!m_PropagatedEventQueue.empty())
+		{
+			m_EventQueue.insert(m_EventQueue.end(), m_PropagatedEventQueue.begin(), m_PropagatedEventQueue.end());
+			m_PropagatedEventQueue.clear();
+		}
 	}
 
 	void Application::SetupKeybindings()
 	{
-		m_ActionMap.AddAction(ActionType::SELECT_UP, KEY_UP, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::SELECT_UP, KEY_W, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::COMMIT, KEY_ENTER, InteractionType::PRESSED, MappingContext::ALWAYS_ON);
+		m_ActionMap.AddAction(ActionType::CANCEL, KEY_ESCAPE, InteractionType::PRESSED, MappingContext::ALWAYS_ON);
 
-		m_ActionMap.AddAction(ActionType::SELECT_DOWN, KEY_DOWN, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::SELECT_DOWN, KEY_S, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::SELECT_UP, KEY_UP, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR | MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_UP, KEY_UP, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_UP, KEY_W, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR | MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_UP, KEY_W, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
 
-		m_ActionMap.AddAction(ActionType::SELECT_LEFT, KEY_LEFT, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::SELECT_LEFT, KEY_A, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::SELECT_DOWN, KEY_DOWN, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR | MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_DOWN, KEY_DOWN, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_DOWN, KEY_S, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR | MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_DOWN, KEY_S, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
 
-		m_ActionMap.AddAction(ActionType::SELECT_RIGHT, KEY_RIGHT, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::SELECT_RIGHT, KEY_D, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::SELECT_LEFT, KEY_LEFT, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::SELECT_LEFT, KEY_LEFT, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_LEFT, KEY_A, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::SELECT_LEFT, KEY_A, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
 
-		m_ActionMap.AddAction(ActionType::ONE, KEY_ONE, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::ONE, KEY_KP_1, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::SELECT_RIGHT, KEY_RIGHT, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::SELECT_RIGHT, KEY_RIGHT, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
+		m_ActionMap.AddAction(ActionType::SELECT_RIGHT, KEY_D, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::SELECT_RIGHT, KEY_D, InteractionType::REPEATED, MappingContext::LEVEL_SELECTION);
 
-		m_ActionMap.AddAction(ActionType::TWO, KEY_TWO, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::TWO, KEY_KP_2, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::ONE, KEY_ONE, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::ONE, KEY_KP_1, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::THREE, KEY_THREE, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::THREE, KEY_KP_3, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::TWO, KEY_TWO, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::TWO, KEY_KP_2, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::FOUR, KEY_FOUR, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::FOUR, KEY_KP_4, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::THREE, KEY_THREE, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::THREE, KEY_KP_3, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::FIVE, KEY_FIVE, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::FIVE, KEY_KP_5, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::FOUR, KEY_FOUR, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::FOUR, KEY_KP_4, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::SIX, KEY_SIX, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::SIX, KEY_KP_6, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::FIVE, KEY_FIVE, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::FIVE, KEY_KP_5, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::SEVEN, KEY_SEVEN, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::SEVEN, KEY_KP_7, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::SIX, KEY_SIX, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::SIX, KEY_KP_6, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::EIGHT, KEY_EIGHT, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::EIGHT, KEY_KP_8, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::SEVEN, KEY_SEVEN, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::SEVEN, KEY_KP_7, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::NINE, KEY_NINE, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::NINE, KEY_KP_9, InteractionType::PRESSED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::EIGHT, KEY_EIGHT, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::EIGHT, KEY_KP_8, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::GUESS_MODE, KEY_LEFT_CONTROL, InteractionType::PRESSED, MappingContext::GAME);
-		m_ActionMap.AddAction(ActionType::NUMBER_MODE, KEY_LEFT_CONTROL, InteractionType::RELEASED, MappingContext::GAME);
+		m_ActionMap.AddAction(ActionType::NINE, KEY_NINE, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::NINE, KEY_KP_9, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 
-		m_ActionMap.AddAction(ActionType::BOARD_RESET, KEY_R, InteractionType::PRESSED, MappingContext::ALWAYS_ON);
-		m_ActionMap.AddAction(ActionType::REPARSE_LEVEL, KEY_O, InteractionType::PRESSED, MappingContext::ALWAYS_ON);
+		m_ActionMap.AddAction(ActionType::ALT_MODE, KEY_LEFT_CONTROL, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::NUMBER_MODE, KEY_LEFT_CONTROL, InteractionType::RELEASED, MappingContext::GAME | MappingContext::EDITOR);
+
+		m_ActionMap.AddAction(ActionType::BOARD_RESET, KEY_R, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR | MappingContext::POST_GAME);
+		m_ActionMap.AddAction(ActionType::SAVE_LEVEL, KEY_F, InteractionType::PRESSED, MappingContext::EDITOR);
+
+		m_ActionMap.AddAction(ActionType::TOGGLE_LEVEL_MENU, KEY_L, InteractionType::PRESSED, MappingContext::ALWAYS_ON);
+
+		m_ActionMap.AddAction(ActionType::EDITOR_MODE, KEY_E, InteractionType::PRESSED, MappingContext::GAME | MappingContext::POST_GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::PLAY_MODE, KEY_P, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 	}
 
 }

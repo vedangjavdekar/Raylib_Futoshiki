@@ -6,9 +6,20 @@
 #include <unordered_set>
 
 #include "Serialization/LevelData.h"
+#include "Events.h"
+
+#define ALT_MODE_ON 1
+#define ALT_MODE_OFF 0
+#define ALT_MODE_NC -1
+
+#define EDIT_MODE_ON 1
+#define EDIT_MODE_OFF 0
+#define EDIT_MODE_NC -1
 
 namespace Engine
 {
+	Event CreateGridStateChangeEvent(int altMode, int editMode);
+
 	struct GridStyle
 	{
 		Color SelectionColor = Color{ 240, 229, 77, 255 };
@@ -26,8 +37,14 @@ namespace Engine
 		int GuessFontSize = 20;
 		int NumberFontSize = 48;
 
-		float CellSize = 108.0f;
-		float BlockSize = 72.0f;
+		int CellSize = 108;
+		int BlockSize = 72;
+	};
+
+	struct GridState
+	{
+		bool AltMode = false;
+		bool EditMode = false;
 	};
 
 	class Grid
@@ -50,33 +67,59 @@ namespace Engine
 			bool IsColConstraint() const;
 			bool FaceLeft() const;
 			bool FaceUp() const;
+			bool IsViolated(uint8_t gridSize) const;
 		};
 
 	public:
-		Grid(uint8_t rows, uint8_t cols, GridStyle style = GridStyle{}, bool isEditMode = false);
+		static const uint8_t DEFAULT_GRID_SIZE = 4;
+
+
+		Grid(GridStyle style = GridStyle{});
 
 		void Update();
 		void Draw();
 		void Reset();
+		void NewBoard(bool useDefaultSize = false, bool showNotification = true);
 
-		void ToggleGuess(uint8_t guess);
-		void ToggleNumber(uint8_t guess);
+		void OnHandleNumber(uint8_t number);
+		void OnChangeSelection(int x, int y);
 
-		void SetSelection(uint8_t x, uint8_t y);
-		void GetSelection(uint8_t& x, uint8_t& y);
-
-		void AddSelection(int x, int y);
+		const GridState& GetGridState()const;
+		void SetAltMode(bool altMode);
+		void SetEditMode(bool editMode);
 		
-		void LockCell(uint8_t x, uint8_t y, uint8_t number);
+		// Will result in loss of data when changing the grid size to a lower one.
+		void ChangeGridSize(uint8_t gridSize,bool retainData = true);
+
+		void LockCell(uint8_t x, uint8_t y, uint8_t number, bool suppressNotifications = true);
+		void UnlockCell(uint8_t x, uint8_t y);
 		
-		void AddGreaterThanConstraint(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
+		void AddGreaterThanConstraint(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool suppressNotifications = true);
+		void RemoveGreaterThanConstraint(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
 
 		static Serialization::LevelData GetSaveData(const Grid& grid);
 		void LoadFromData(const Serialization::LevelData& levelData);
 
 		bool PlayerWon() const;
-		bool IsEditMode() const;
-	private:
+		
+		void DrawHelpText(int x, int y);
+
+		bool HasValidData() const;
+
+	protected:
+		void ToggleGuess(uint8_t guess);
+		void ToggleNumber(uint8_t number);
+		void ToggleLock(uint8_t number);
+		void ToggleConstraint(int x,int y);
+
+		void FlipGreaterThanConstraint(int index);
+		int GetConstraintIndex(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool& isFlipped) const;
+
+
+		void DrawBlock(const CellData& cell, uint8_t x, uint8_t y, const Vector2& blockPosition);
+		void DrawGuess(const CellData& cell, uint8_t x, uint8_t y, const Vector2& blockPosition);
+		void DrawNumber(const CellData& cell, uint8_t x, uint8_t y, const Vector2& blockPosition);
+	
 		CellData& GetCellData(uint8_t x, uint8_t y);
 		const CellData& GetCellData(uint8_t x, uint8_t y)const;
 
@@ -96,7 +139,8 @@ namespace Engine
 		GridStyle Style;
 
 	private:
-		uint8_t m_Rows, m_Cols;
+		GridState m_State;
+		uint8_t m_GridSize;
 
 		int m_SelectedRow, m_SelectedCol;
 		Vector2 m_Origin;
@@ -107,7 +151,6 @@ namespace Engine
 		std::bitset<99> m_Errors;
 
 		size_t m_TargetSum;
-		bool m_IsEditMode;
 		bool m_PlayerWon;
 	};
 }

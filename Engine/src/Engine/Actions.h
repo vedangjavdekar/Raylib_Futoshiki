@@ -1,80 +1,15 @@
 #pragma once
-#include <stdint.h>
 #include <string>
 #include <vector>
 #include <unordered_map>
 
 #include "raylib.h"
+
 #include "Events.h"
-
-
-#define BIT(x) 1 << x 
+#include "ActionTypes.h"
 
 namespace Engine
 {
-	enum class ActionType : uint8_t
-	{
-		BOARD_RESET,
-		REPARSE_LEVEL,
-		EDITOR_MODE,
-		PLAY_MODE,
-		GUESS_MODE,
-		NUMBER_MODE,
-		SELECT_LEFT,
-		SELECT_RIGHT,
-		SELECT_UP,
-		SELECT_DOWN,
-		ONE,
-		TWO,
-		THREE,
-		FOUR,
-		FIVE,
-		SIX,
-		SEVEN,
-		EIGHT,
-		NINE,
-	};
-
-	enum class MappingContext : uint8_t
-	{
-		UNDEFINED = 0,
-		ALWAYS_ON = BIT(0),
-		GAME = BIT(1),
-		EDITOR = BIT(2),
-	};
-
-	inline constexpr MappingContext operator|(MappingContext a, MappingContext b)
-	{
-		return static_cast<MappingContext>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
-	}
-
-	inline constexpr MappingContext operator&(MappingContext a, MappingContext b)
-	{
-		return static_cast<MappingContext>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
-	}
-
-	inline constexpr MappingContext& operator|=(MappingContext& a, MappingContext b)
-	{
-		return a = a | b;
-	}
-
-	inline constexpr MappingContext& operator&=(MappingContext& a, MappingContext b)
-	{
-		return a = a & b;
-	}
-
-	inline constexpr MappingContext operator ~(MappingContext a)
-	{
-		return static_cast<MappingContext>(~static_cast<uint8_t>(a));
-	}
-
-	enum class InteractionType : uint8_t
-	{
-		PRESSED,
-		DOWN,
-		RELEASED,
-	};
-
 	struct Action
 	{
 		KeyboardKey KeyCode;
@@ -83,7 +18,8 @@ namespace Engine
 
 		inline bool Evaluate(MappingContext currentContext) const
 		{
-			if ((Context & currentContext) == MappingContext::UNDEFINED && (Context & MappingContext::ALWAYS_ON) == MappingContext::UNDEFINED)
+			if ((Context & currentContext) == MappingContext::UNDEFINED && 
+				(Context & MappingContext::ALWAYS_ON) == MappingContext::UNDEFINED)
 			{
 				return false;
 			}
@@ -92,6 +28,8 @@ namespace Engine
 			{
 			case Engine::InteractionType::PRESSED:
 				return IsKeyPressed(KeyCode);
+			case Engine::InteractionType::REPEATED:
+				return IsKeyPressedRepeat(KeyCode);
 			case Engine::InteractionType::DOWN:
 				return IsKeyDown(KeyCode);
 			case Engine::InteractionType::RELEASED:
@@ -106,18 +44,25 @@ namespace Engine
 	{
 	public:
 		void GenerateEvents(std::vector<Event>& events);
-		void SetCurrentMappingContext(MappingContext context);
+
+		void PushInputLayer(MappingContext context);
+		void PopInputLayer();
+
+		void SetCurrentMappingContext(MappingContext context); // keeps ALWAYS_ON irrespective of the setting
 		void AddMappingContext(MappingContext context);
 		void RemoveMappingContext(MappingContext context);
+		void RemoveAllMappingContexts(); // Only keeps ALWAYS_ON
 
 		void AddAction(ActionType actionType, const Action& action);
 		void AddAction(ActionType actionType, const KeyboardKey& key, const InteractionType interactionType = InteractionType::PRESSED,const MappingContext context = MappingContext::ALWAYS_ON);
 
 		void RemoveAction(ActionType actionType, const KeyboardKey& key);
 		void RemoveAllActions(ActionType actionType);
+
 	private:
 		std::unordered_map <ActionType, std::vector<Action>> m_ActionMap;
-		MappingContext m_MappingContext = MappingContext::ALWAYS_ON | MappingContext::GAME;
+		std::vector<MappingContext> m_MappingContexts = { MappingContext::ALWAYS_ON | MappingContext::GAME };
+		size_t m_CurrentMappingContextIndex = 0;
 		bool m_IsGuessMode = false;
 	};
 }

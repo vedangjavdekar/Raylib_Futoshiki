@@ -2,17 +2,16 @@
 #include <fstream>
 #include <sstream>
 
-#include "raylib.h"
+#include <fmt/core.h>
 
 namespace Serialization
 {
-	LevelData Parser::Parse(const std::string& filepath)
+	LevelData Parse(const std::string& filepath)
 	{
 		LevelData data;
 		std::ifstream file(filepath);
 		if (!file.is_open())
 		{
-			TraceLog(LOG_FATAL, "File Not Found: No data to parse. Aborting...");
 			return LevelData();
 		}
 
@@ -97,8 +96,37 @@ namespace Serialization
 		return data;
 	}
 
-	bool Parser::Write(const LevelData& levelData, const std::string& filepath)
+	bool Write(const LevelData& levelData, const std::string& filepath)
 	{
-		return false;
+		std::ofstream file(filepath, std::ofstream::out);
+
+		if (!file.is_open())
+		{
+			return false;
+		}
+
+		std::stringstream ss;
+		ss << "S " << std::to_string(levelData.GridSize) << "\n";
+		for (auto& lockedCell : levelData.LockedCells)
+		{
+			ss << "N " 
+				<< std::to_string(lockedCell.X) << " " 
+				<< std::to_string(lockedCell.Y) << " " 
+				<< std::to_string(lockedCell.Val) << "\n";
+		}
+
+		for (auto& constraint : levelData.GreaterThanConstraints)
+		{
+			ss << "C " 
+				<< std::to_string(constraint.X1) << " " 
+				<< std::to_string(constraint.Y1) << " " 
+				<< std::to_string(constraint.X2) << " "
+				<< std::to_string(constraint.Y2) << "\n";
+		}
+
+		file << ss.str();
+
+		file.close();
+		return true;
 	}
 }

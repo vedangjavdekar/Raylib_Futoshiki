@@ -7,8 +7,8 @@ namespace Engine
 {
 	void ComputeHorizontalArrow(
 		const Vector2 cellPosition,
-		const float cellSize,
-		const float blockSize,
+		const int cellSize,
+		const int blockSize,
 		const float tWidthPercent,
 		const float tHeightPercent,
 		Vector2& top, Vector2& bottom, Vector2& right,
@@ -48,9 +48,10 @@ namespace Engine
 		}
 	}
 
-	void ComputeVerticalArrow(const Vector2 cellPosition,
-		const float cellSize,
-		const float blockSize,
+	void ComputeVerticalArrow(
+		const Vector2 cellPosition,
+		const int cellSize,
+		const int blockSize,
 		const float tWidthPercent,
 		const float tHeightPercent,
 		Vector2& left, Vector2& bottom, Vector2& right,
@@ -58,7 +59,7 @@ namespace Engine
 	{
 		const Vector2 cellCenter = Vector2Add(cellPosition, Vector2{ 0.5f * cellSize, 0.5f * cellSize });
 		const float width = blockSize;
-		const float height = cellSize - blockSize;
+		const float height = (float)(cellSize - blockSize);
 		Rectangle triangleRect = Rectangle{
 			cellCenter.x - 0.5f * blockSize,
 			cellCenter.y + 0.5f * blockSize,

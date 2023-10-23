@@ -4,8 +4,8 @@
 namespace Engine
 {
 	void ComputeHorizontalArrow(const Vector2 cellPosition,
-		const float cellSize,
-		const float blockSize,
+		const int cellSize,
+		const int blockSize,
 		const float tWidthPercent,
 		const float tHeightPercent,
 		Vector2& top, Vector2& bottom, Vector2& right,
@@ -13,8 +13,8 @@ namespace Engine
 
 
 	void ComputeVerticalArrow(const Vector2 cellPosition,
-		const float cellSize,
-		const float blockSize,
+		const int cellSize,
+		const int blockSize,
 		const float tWidthPercent,
 		const float tHeightPercent,
 		Vector2& left, Vector2& bottom, Vector2& right,

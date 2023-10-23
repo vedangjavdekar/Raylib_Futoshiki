@@ -20,7 +20,7 @@ namespace Serialization
 
     struct LevelData
     {
-        uint8_t GridSize;
+        uint8_t GridSize = 0;
         std::vector<LockedNumber> LockedCells;
         std::vector<GreaterThanConstraint> GreaterThanConstraints;
     };

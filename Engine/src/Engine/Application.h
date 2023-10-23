@@ -6,13 +6,15 @@
 #include "Events.h"
 #include "Actions.h"
 #include "Grid.h"
+#include "LevelSelection.h"
+#include "Notifications.h"
 
 namespace Engine
 {
     struct ApplicationProps
     {
-        size_t Width;
-        size_t Height;
+        int Width;
+        int Height;
         std::string Title;
     };
 
@@ -28,6 +30,8 @@ namespace Engine
         static Application& Get();
         
         void AddEvent(const Event& customEvent);
+        Notifications& GetNotifications();
+        
     protected:
         void Init();
         void Update(const float deltaTime);
@@ -40,8 +44,13 @@ namespace Engine
         ApplicationProps m_ApplicationProps;
 
         ActionMap m_ActionMap;
+        
         std::vector<Event> m_EventQueue;
+        std::vector<Event> m_PropagatedEventQueue;
+
         Grid m_Grid;
+        LevelSelection m_LevelSelection;
+        Notifications m_Notifications;
 
         bool m_IsRunning;
     };

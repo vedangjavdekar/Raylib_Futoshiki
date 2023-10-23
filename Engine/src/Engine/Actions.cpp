@@ -6,6 +6,13 @@ namespace Engine
 	{
 		switch (actionType)
 		{
+			// Common Events
+		case Engine::ActionType::COMMIT:
+			return Event{ EventType::COMMIT, { 0, 0} };
+		case Engine::ActionType::CANCEL:
+			return Event{ EventType::CANCEL, { 0, 0} };
+
+			// Selection Events
 		case Engine::ActionType::SELECT_LEFT:
 			return Event{ EventType::CHANGE_SELECTION, { -1,  0} };
 		case Engine::ActionType::SELECT_RIGHT:
@@ -14,6 +21,8 @@ namespace Engine
 			return Event{ EventType::CHANGE_SELECTION, {  0, -1} };
 		case Engine::ActionType::SELECT_DOWN:
 			return Event{ EventType::CHANGE_SELECTION, {  0,  1} };
+
+			// Number Events
 		case Engine::ActionType::ONE:
 			return Event{ EventType::NUMBER_EVENT, { 1,  0} };
 		case Engine::ActionType::TWO:
@@ -32,14 +41,25 @@ namespace Engine
 			return Event{ EventType::NUMBER_EVENT, { 8,  0} };
 		case Engine::ActionType::NINE:
 			return Event{ EventType::NUMBER_EVENT, { 9,  0} };
-		case Engine::ActionType::REPARSE_LEVEL:
-			return Event{ EventType::REPARSE_LEVEL, { 0,  0} };
+
+			// Grid Modes
+		case Engine::ActionType::ALT_MODE:
+			return Event{ EventType::CHANGE_GRID_STATE, { 1,  -1} };
+		case Engine::ActionType::NUMBER_MODE:
+			return Event{ EventType::CHANGE_GRID_STATE, { 0,  -1} };
+		case Engine::ActionType::EDITOR_MODE:
+			return Event{ EventType::CHANGE_GRID_STATE, { -1, 1} };
+		case Engine::ActionType::PLAY_MODE:
+			return Event{ EventType::CHANGE_GRID_STATE, { -1, 0} };
+
+			// Level Events
 		case Engine::ActionType::BOARD_RESET:
 			return Event{ EventType::BOARD_RESET, { 0,  0} };
-		case Engine::ActionType::EDITOR_MODE:
-			return Event{ EventType::ENTER_EDIT_MODE, { 0,  0} };
-		case Engine::ActionType::PLAY_MODE:
-			return Event{ EventType::ENTER_PLAY_MODE, { 0,  0} };
+		case Engine::ActionType::SAVE_LEVEL:
+			return Event{ EventType::SAVE_LEVEL, { 0,  0} };
+		case Engine::ActionType::TOGGLE_LEVEL_MENU:
+			return Event{ EventType::TOGGLE_LEVEL_MENU, { 0,  0} };
+
 		default:
 			return Event{ EventType::CHANGE_SELECTION, { 0,  0} };
 		}
@@ -50,51 +70,49 @@ namespace Engine
 		{
 			for (const auto& action : actions)
 			{
-				if (action.Evaluate(m_MappingContext))
+				if (action.Evaluate(m_MappingContexts[m_CurrentMappingContextIndex]))
 				{
-					if (actionType == ActionType::GUESS_MODE)
-					{
-						m_IsGuessMode = true;
-					}
-					else if (actionType == ActionType::NUMBER_MODE)
-					{
-						m_IsGuessMode = false;
-					}
-					else
-					{
-						Event currEvent = GenerateEventFromAction(actionType);
-						if (currEvent.type == EventType::NUMBER_EVENT)
-						{
-							if (m_IsGuessMode)
-							{
-								currEvent.type = EventType::ENTER_GUESS;
-							}
-							else
-							{
-								currEvent.type = EventType::ENTER_NUMBER;
-							}
-						}
-
-						events.push_back(currEvent);
-					}
+					Event currEvent = GenerateEventFromAction(actionType);
+					events.push_back(currEvent);
 				}
 			}
 		}
 	}
 
+	void ActionMap::PushInputLayer(MappingContext context)
+	{
+		MappingContext& newContext = m_MappingContexts.emplace_back();
+		newContext = MappingContext::ALWAYS_ON | context;
+		m_CurrentMappingContextIndex++;
+	}
+
+	void ActionMap::PopInputLayer()
+	{
+		if (m_MappingContexts.size() > 1)
+		{
+			m_MappingContexts.pop_back();
+			m_CurrentMappingContextIndex--;
+		}
+	}
+
 	void ActionMap::SetCurrentMappingContext(MappingContext context)
 	{
-		m_MappingContext = context;
+		m_MappingContexts[m_CurrentMappingContextIndex] = context | MappingContext::ALWAYS_ON;
 	}
 
 	void ActionMap::AddMappingContext(MappingContext context)
 	{
-		m_MappingContext |= context;
+		m_MappingContexts[m_CurrentMappingContextIndex] |= context;
 	}
 
 	void ActionMap::RemoveMappingContext(MappingContext context)
 	{
-		m_MappingContext &= ~context;
+		m_MappingContexts[m_CurrentMappingContextIndex] &= ~context;
+	}
+
+	void ActionMap::RemoveAllMappingContexts()
+	{
+		m_MappingContexts[m_CurrentMappingContextIndex] = MappingContext::ALWAYS_ON;
 	}
 
 	void ActionMap::AddAction(ActionType actionType, const Action& action)
@@ -157,4 +175,5 @@ namespace Engine
 
 		m_ActionMap.erase(actionType);
 	}
+
 }

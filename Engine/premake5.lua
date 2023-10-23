@@ -1,7 +1,12 @@
 project "Engine"
-    kind "ConsoleApp"
     language "C++"
     cppdialect "C++17"
+
+    filter "configurations:Debug"
+        kind "ConsoleApp"
+    filter "configurations:Release"
+        kind "WindowedApp"
+    filter {}
 
     targetdir(targetPath)
     objdir(objectPath)
@@ -9,11 +14,11 @@ project "Engine"
     debugdir(debugPath)
 
     dependson {
-       "raylib"
+       "raylib",
     }
 
     links{
-        "raylib"
+        "raylib",
     }
 
     files { 
@@ -22,12 +27,14 @@ project "Engine"
     }
 
     defines{
-        "BUILD_LIBTYPE_SHARED"
+        "BUILD_LIBTYPE_SHARED",
+        "FMT_HEADER_ONLY"
     }
 
     includedirs {
         "src",
         "%{IncludeDirs.raylib}",
+        "%{IncludeDirs.fmt}",
     }
 
     filter "configurations:Debug"
