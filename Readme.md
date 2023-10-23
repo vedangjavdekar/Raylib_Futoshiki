@@ -80,6 +80,8 @@ Only `Navigational` controls and `Commit` and `Cancel` actions work.
 
 # Screenshots
 
+https://github.com/vedangjavdekar/Raylib_Futoshiki/assets/30022526/a5234c83-3571-43b2-b3cb-2b4dcd2df238
+
 ![Screenshot1](https://github.com/vedangjavdekar/Raylib_Futoshiki/blob/master/github/Screenshot1.png)
 ![Screenshot2](https://github.com/vedangjavdekar/Raylib_Futoshiki/blob/master/github/Screenshot2.png)
 
