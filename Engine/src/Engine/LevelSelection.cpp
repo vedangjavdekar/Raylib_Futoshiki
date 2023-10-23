@@ -112,6 +112,8 @@ namespace Engine
 
 	void LevelSelection::ShowMenu()
 	{
+		m_SlideTime = 0.0f;
+		m_AnimationDirection = 1;
 		m_IsOpen = true;
 		Application::Get().AddEvent(Event{ EventType::INPUT_LAYER_OPERATION, {(int)InputLayerOperation::PUSH, (int)MappingContext::LEVEL_SELECTION} });
 	}
@@ -157,9 +159,19 @@ namespace Engine
 
 	void LevelSelection::Update(const float deltaTime)
 	{
-		if (!m_IsOpen)
+		if (!m_IsOpen && (m_AnimationDirection == 0))
 		{
 			return;
+		}
+
+		if (m_AnimationDirection != 0)
+		{
+			m_SlideTime += m_AnimationDirection * deltaTime;
+			if (m_SlideTime < 0.0f || m_SlideTime > Settings.SlideTime)
+			{
+				m_SlideTime = Clamp(m_SlideTime, 0.0f, Settings.SlideTime);
+				m_AnimationDirection = 0;
+			}
 		}
 
 		if (m_Offset != m_TargetOffset)
@@ -182,7 +194,7 @@ namespace Engine
 
 	void LevelSelection::Draw(float widthPercent, float heightPercent, float padding)
 	{
-		if (!m_IsOpen)
+		if (!m_IsOpen && (m_AnimationDirection == 0))
 		{
 			return;
 		}
@@ -190,8 +202,11 @@ namespace Engine
 		const float absWidth = widthPercent * GetScreenWidth();
 		const float absHeight = heightPercent * GetScreenHeight();
 
+		const float targetX = 0.5f * (GetScreenWidth() - absWidth);
+		const float currentX = Lerp(GetScreenWidth(), targetX, Easings::EaseInOutCubic(m_SlideTime / Settings.SlideTime));
+
 		Rectangle ClientArea = {
-			0.5f * (GetScreenWidth() - absWidth),
+			currentX,
 			0.5f * (GetScreenHeight() - absHeight),
 			absWidth,
 			absHeight
@@ -259,6 +274,7 @@ namespace Engine
 		}
 
 		m_IsOpen = false;
+		m_AnimationDirection = -1;
 	}
 
 	bool LevelSelection::IsOpen() const

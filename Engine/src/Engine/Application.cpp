@@ -288,10 +288,12 @@ namespace Engine
 				{
 					AddEvent(CreateGridStateChangeEvent(ALT_MODE_NC, EDIT_MODE_OFF));
 				}
+#ifdef BUILD_DEBUG
 				else
 				{
 					Close();
 				}
+#endif
 				break;
 			}
 			default:
@@ -364,6 +366,9 @@ namespace Engine
 
 		m_ActionMap.AddAction(ActionType::ALT_MODE, KEY_LEFT_CONTROL, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
 		m_ActionMap.AddAction(ActionType::NUMBER_MODE, KEY_LEFT_CONTROL, InteractionType::RELEASED, MappingContext::GAME | MappingContext::EDITOR);
+
+		m_ActionMap.AddAction(ActionType::ALT_MODE, KEY_RIGHT_CONTROL, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR);
+		m_ActionMap.AddAction(ActionType::NUMBER_MODE, KEY_RIGHT_CONTROL, InteractionType::RELEASED, MappingContext::GAME | MappingContext::EDITOR);
 
 		m_ActionMap.AddAction(ActionType::BOARD_RESET, KEY_R, InteractionType::PRESSED, MappingContext::GAME | MappingContext::EDITOR | MappingContext::POST_GAME);
 		m_ActionMap.AddAction(ActionType::SAVE_LEVEL, KEY_F, InteractionType::PRESSED, MappingContext::EDITOR);

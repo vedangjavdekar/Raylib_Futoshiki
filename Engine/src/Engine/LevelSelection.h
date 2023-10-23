@@ -11,6 +11,8 @@ namespace Engine
 {
 	struct ScrollSettings
 	{
+		float SlideTime = 0.5f;
+
 		int ItemHeight = 50;
 		int Separation = 5;
 		int FontSize = 30;
@@ -18,6 +20,7 @@ namespace Engine
 		float ScrollTime = 0.5f;
 
 		bool WrapAround = true;
+
 	};
 
 	struct ItemStyle
@@ -55,7 +58,7 @@ namespace Engine
 		ItemStyle SelectedItemStyle{ WHITE, ORANGE };
 	private:
 		bool m_IsOpen = false;
-
+		
 		std::string m_LoadedLevelName;
 		std::string m_DirectoryPath;
 		std::vector<std::string> m_LevelNames;
@@ -69,5 +72,8 @@ namespace Engine
 
 		float m_TargetOffset = 0.0f;
 		float m_StartOffset = 0.0f;
+
+		float m_SlideTime = 0.0f;
+		int m_AnimationDirection = 0;
 	};
 }

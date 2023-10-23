@@ -111,3 +111,15 @@ The game is feature complete:
 - Adding new levels is as easy as dropping a `*.data` file in the required
   format in the `data/` directory
 - Game comes with 15 levels right now.
+
+# Ideas to explore further
+
+- Using the github repo as a central level database, and fetching all the levels
+  at the start of the game.
+- Getting the community created content through pull
+  requests.
+- Making this project cross platform:
+  - Scripts for building on Linux and Mac.
+  - Removing the `WinMain` from the code.
+- Find better solutions Level Selection and how it tries to rename every single
+  level if one of the in betweens are missing.
