@@ -287,7 +287,7 @@ namespace Engine
 			return;
 		}
 
-		
+
 
 		if (m_State.EditMode)
 		{
@@ -306,16 +306,25 @@ namespace Engine
 		}
 		else
 		{
-			if ((m_SelectedCol + x < 0 || m_SelectedCol + x >= m_GridSize)
-				|| (m_SelectedRow + y < 0 || m_SelectedRow + y >= m_GridSize))
+			if (!IsCellValid(m_SelectedCol + x, m_SelectedRow + y))
 			{
 				return;
 			}
 
-			CellData& cell = GetCellData(m_SelectedCol + x, m_SelectedRow + y);
-			if (cell.Locked)
+
+			if (IsCellLocked(m_SelectedCol + x, m_SelectedRow + y))
 			{
-				OnChangeSelection(2 * x, 2 * y);
+				int multiplier = 2;
+				while (IsCellValid(m_SelectedCol + multiplier * x, m_SelectedRow + multiplier * y) 
+					&& IsCellLocked(m_SelectedCol + multiplier * x, m_SelectedRow + multiplier * y))
+				{
+					multiplier++;
+				}
+
+				if (IsCellValid(m_SelectedCol + multiplier * x, m_SelectedRow + multiplier * y))
+				{
+					OnChangeSelection(multiplier * x, multiplier * y);
+				}
 			}
 			else
 			{
@@ -404,8 +413,7 @@ namespace Engine
 
 	void Grid::LockCell(uint8_t x, uint8_t y, uint8_t number, bool suppressNotifications)
 	{
-		if ((x < 0 || x >= m_GridSize)
-			|| (y < 0 || y >= m_GridSize) || (number > m_GridSize))
+		if (!IsCellValid(x, y) || (number > m_GridSize))
 		{
 			if (!suppressNotifications)
 			{
@@ -422,8 +430,7 @@ namespace Engine
 
 	void Grid::UnlockCell(uint8_t x, uint8_t y)
 	{
-		if ((x < 0 || x >= m_GridSize)
-			|| (y < 0 || y >= m_GridSize))
+		if (!IsCellValid(x, y))
 		{
 			return;
 		}
@@ -444,10 +451,7 @@ namespace Engine
 			return;
 		}
 
-		if ((x1 < 0 || x1 >= m_GridSize)
-			|| (x2 < 0 || x2 >= m_GridSize)
-			|| (y1 < 0 || y1 >= m_GridSize)
-			|| (y2 < 0 || y2 >= m_GridSize))
+		if (!IsCellValid(x1, y1) || !IsCellValid(x2, y2))
 		{
 			if (!suppressNotifications)
 			{
@@ -755,6 +759,17 @@ namespace Engine
 	const Grid::CellData& Grid::GetCellData(uint8_t x, uint8_t y)const
 	{
 		return m_CellData[y * m_GridSize + x];
+	}
+
+	const bool Grid::IsCellLocked(uint8_t x, uint8_t y) const
+	{
+		return m_CellData[y * m_GridSize + x].Locked;
+	}
+
+	const bool Grid::IsCellValid(uint8_t x, uint8_t y) const
+	{
+		return (x >= 0 && x < m_GridSize)
+			&& (y >= 0 && y < m_GridSize);
 	}
 
 	bool Grid::CheckColHasError(uint8_t col) const

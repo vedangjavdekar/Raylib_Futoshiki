@@ -122,6 +122,8 @@ namespace Engine
 	
 		CellData& GetCellData(uint8_t x, uint8_t y);
 		const CellData& GetCellData(uint8_t x, uint8_t y)const;
+		const bool IsCellLocked(uint8_t x, uint8_t y)const;
+		const bool IsCellValid(uint8_t x, uint8_t y)const;
 
 		bool CheckCellHasError(uint8_t x, uint8_t y) const;
 		bool CheckColHasError(uint8_t col) const;
